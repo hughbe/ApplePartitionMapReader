@@ -70,6 +70,7 @@ if (ApplePartitionMap.IsApplePartitionMap(stream, 0))
 - `static bool IsApplePartitionMap(Stream stream, int volumeStartOffset)`: Checks if the stream contains a valid Apple Partition Map at the given offset.
 - `IEnumerable<ApplePartitionMapEntry> Entries`: Enumerates all partition entries in the map.
 - `ApplePartitionMapEntry this[int index]`: Gets the partition entry at the specified index.
+- `DriverDescriptorMap? DriverDescriptorMap`: Returns the driver descriptor map read from block 0, or `null` if the block is blank (signature `0x0000`).
 
 ### ApplePartitionMapEntry
 

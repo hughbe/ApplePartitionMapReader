@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
+using ApplePartitionMapReader.Utilities;
 
 namespace ApplePartitionMapReader;
 
@@ -101,6 +102,40 @@ public readonly struct ApplePartitionMap
         finally
         {
             stream.Seek(position, SeekOrigin.Begin);
+        }
+    }
+
+    /// <summary>
+    /// Reads the Driver Descriptor Map at the start of the volume (block 0).
+    /// Returns null if the block is blank (signature == 0x0000).
+    /// </summary>
+    public DriverDescriptorMap? DriverDescriptorMap
+    {
+        get
+        {
+            Span<byte> blockBuffer = stackalloc byte[Utilities.DriverDescriptorMap.Size];
+            var position = _stream.Position;
+            try
+            {
+                _stream.Seek(_streamStartOffset, SeekOrigin.Begin);
+
+                if (_stream.Read(blockBuffer) != blockBuffer.Length)
+                {
+                    throw new InvalidDataException("Unable to read Driver Descriptor Map block.");
+                }
+
+                var sig = BinaryPrimitives.ReadUInt16BigEndian(blockBuffer);
+                if (sig == 0x0000)
+                {
+                    return null;
+                }
+
+                return new DriverDescriptorMap(blockBuffer);
+            }
+            finally
+            {
+                _stream.Seek(position, SeekOrigin.Begin);
+            }
         }
     }
 }

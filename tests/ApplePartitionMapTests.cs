@@ -108,4 +108,38 @@ public class ApplePartitionMapTests
         Assert.Equal(136274u, partition.DataBlockCount);
         Assert.Equal(ApplePartitionMapStatus.Valid | ApplePartitionMapStatus.Allocated | ApplePartitionMapStatus.InUse | ApplePartitionMapStatus.Readable | ApplePartitionMapStatus.Writable, partition.StatusFlags);
     }
+
+    [Fact]
+    public void DriverDescriptorMap_TestIso_Present()
+    {
+        var filePath = Path.Combine("Samples", "test.iso");
+        using var stream = File.OpenRead(filePath);
+        var map = new ApplePartitionMap(stream, 0);
+
+        var dd = map.DriverDescriptorMap;
+
+        Assert.NotNull(dd);
+
+        // Header properties
+        Assert.Equal(0x4552, dd.Value.Signature);
+        Assert.Equal(512u, dd.Value.BlockSize);
+        Assert.Equal(156370u, dd.Value.BlockCount);
+        Assert.Equal(1u, dd.Value.DeviceType);
+        Assert.Equal(1u, dd.Value.DeviceId);
+        Assert.Equal(0u, dd.Value.DriverData);
+        Assert.Equal(1u, dd.Value.DriverCount);
+
+        // Driver entries
+        var entries = dd.Value.Entries.AsSpan();
+        Assert.Equal(64u, entries[0].StartBlock);
+        Assert.Equal(10u, entries[0].BlockCount);
+        Assert.Equal(1u, entries[0].Type);
+
+        // Remaining entries should be empty (StartBlock and BlockCount are 0)
+        for (int i = 1; i < DriverDescriptorMapEntries.Count; i++)
+        {
+            Assert.Equal(0u, entries[i].StartBlock);
+            Assert.Equal(0u, entries[i].BlockCount);
+        }
+    }
 }

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using ApplePartitionMapReader;
+using ApplePartitionMapReader.Utilities;
 
 public sealed class Program
 {
@@ -82,6 +83,23 @@ sealed class DumpCommand : Command<DumpSettings>
         }
 
         AnsiConsole.Write(table);
+
+        var dd = map.DriverDescriptorMap;
+        if (dd is not null)
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[yellow]Driver Descriptor Map[/]");
+            AnsiConsole.MarkupLine($"[blue]Block size[/]: {dd.Value.BlockSize}");
+            AnsiConsole.MarkupLine($"[blue]Block count[/]: {dd.Value.BlockCount}");
+            AnsiConsole.MarkupLine($"[blue]Driver entries[/]: {dd.Value.DriverCount}");
+
+            var entries = dd.Value.Entries.AsSpan();
+            for (int i = 0; i < dd.Value.DriverCount; i++)
+            {
+                var e = entries[i];
+                AnsiConsole.MarkupLine($"Driver {i}: Start={e.StartBlock}, Blocks={e.BlockCount}, Type={e.Type}");
+            }
+        }
 
         return 0;
     }
