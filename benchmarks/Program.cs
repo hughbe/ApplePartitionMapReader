@@ -38,21 +38,45 @@ public class ApplePartitionMapBenchmarks
     }
 
     [Benchmark]
-    public List<ApplePartitionMapEntry> EnumerateEntries()
+    public int EnumerateEntries_ZeroAlloc()
     {
         _stream.Position = 0;
         var map = new ApplePartitionMap(_stream, 0);
-        return map.Entries.ToList();
+        int count = 0;
+        foreach (var partition in map)
+        {
+            count++;
+        }
+        return count;
     }
 
     [Benchmark]
-    public int EnumeratePartitionsWithAccess()
+    public int EnumeratePartitionsWithAccess_ZeroAlloc()
     {
         _stream.Position = 0;
         var map = new ApplePartitionMap(_stream, 0);
         
         int count = 0;
-        foreach (var partition in map.Entries)
+        Span<char> nameBuffer = stackalloc char[32];
+        Span<char> typeBuffer = stackalloc char[32];
+        foreach (var partition in map)
+        {
+            count++;
+            partition.Name.TryFormat(nameBuffer, out _);
+            partition.Type.TryFormat(typeBuffer, out _);
+            _ = partition.StatusFlags;
+        }
+        return count;
+    }
+
+    [Benchmark]
+    public int EnumeratePartitionsWithAccess_Allocating()
+    {
+        _stream.Position = 0;
+        var map = new ApplePartitionMap(_stream, 0);
+        
+        int count = 0;
+        foreach (var partition in map)
         {
             count++;
             _ = partition.Name.ToString();

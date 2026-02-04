@@ -35,17 +35,46 @@ public readonly struct ApplePartitionMap
     }
 
     /// <summary>
-    /// Gets the collection of partition map entries.
+    /// Gets the number of partition map entries.
     /// </summary>
-    public IEnumerable<ApplePartitionMapEntry> Entries
+    public int Count => (int)this[0].MapEntryCount;
+
+    /// <summary>
+    /// Gets an enumerator for the partition map entries.
+    /// This method enables foreach support without allocations.
+    /// </summary>
+    /// <returns>An enumerator for the partition map entries.</returns>
+    public Enumerator GetEnumerator() => new Enumerator(this);
+
+    /// <summary>
+    /// Enumerates the partition map entries without allocating.
+    /// </summary>
+    public struct Enumerator
     {
-        get
+        private readonly ApplePartitionMap _map;
+        private readonly int _count;
+        private int _index;
+
+        internal Enumerator(ApplePartitionMap map)
         {
-            var firstEntry = this[0];
-            for (int i = 0; i < firstEntry.MapEntryCount; i++)
-            {
-                yield return this[i];
-            }
+            _map = map;
+            _count = map.Count;
+            _index = -1;
+        }
+
+        /// <summary>
+        /// Gets the current partition map entry.
+        /// </summary>
+        public ApplePartitionMapEntry Current => _map[_index];
+
+        /// <summary>
+        /// Advances the enumerator to the next entry.
+        /// </summary>
+        /// <returns>true if the enumerator was successfully advanced; false if the enumerator has passed the end.</returns>
+        public bool MoveNext()
+        {
+            _index++;
+            return _index < _count;
         }
     }
 
@@ -113,29 +142,44 @@ public readonly struct ApplePartitionMap
     {
         get
         {
-            Span<byte> blockBuffer = stackalloc byte[Utilities.DriverDescriptorMap.Size];
-            var position = _stream.Position;
-            try
+            TryGetDriverDescriptorMap(out var ddm);
+            return ddm;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to read the Driver Descriptor Map at the start of the volume (block 0).
+    /// This method avoids allocations by using an out parameter instead of returning a nullable struct.
+    /// </summary>
+    /// <param name="driverDescriptorMap">When this method returns, contains the Driver Descriptor Map if present; otherwise, the default value.</param>
+    /// <returns>true if the Driver Descriptor Map was successfully read; false if the block is blank (signature == 0x0000).</returns>
+    /// <exception cref="InvalidDataException">Thrown when the Driver Descriptor Map block cannot be read.</exception>
+    public bool TryGetDriverDescriptorMap(out DriverDescriptorMap driverDescriptorMap)
+    {
+        Span<byte> blockBuffer = stackalloc byte[Utilities.DriverDescriptorMap.Size];
+        var position = _stream.Position;
+        try
+        {
+            _stream.Seek(_streamStartOffset, SeekOrigin.Begin);
+
+            if (_stream.Read(blockBuffer) != blockBuffer.Length)
             {
-                _stream.Seek(_streamStartOffset, SeekOrigin.Begin);
-
-                if (_stream.Read(blockBuffer) != blockBuffer.Length)
-                {
-                    throw new InvalidDataException("Unable to read Driver Descriptor Map block.");
-                }
-
-                var sig = BinaryPrimitives.ReadUInt16BigEndian(blockBuffer);
-                if (sig == 0x0000)
-                {
-                    return null;
-                }
-
-                return new DriverDescriptorMap(blockBuffer);
+                throw new InvalidDataException("Unable to read Driver Descriptor Map block.");
             }
-            finally
+
+            var sig = BinaryPrimitives.ReadUInt16BigEndian(blockBuffer);
+            if (sig == 0x0000)
             {
-                _stream.Seek(position, SeekOrigin.Begin);
+                driverDescriptorMap = default;
+                return false;
             }
+
+            driverDescriptorMap = new DriverDescriptorMap(blockBuffer);
+            return true;
+        }
+        finally
+        {
+            _stream.Seek(position, SeekOrigin.Begin);
         }
     }
 }

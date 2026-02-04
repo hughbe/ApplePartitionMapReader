@@ -1,6 +1,6 @@
 # ApplePartitionMapReader
 
-ApplePartitionMapReader is a lightweight .NET library for reading Apple Partition Maps from classic Macintosh disk images. It provides a simple API to detect partition maps, enumerate partitions, and access partition metadata.
+ApplePartitionMapReader is a lightweight .NET library for reading Apple Partition Maps from classic Macintosh disk images. It provides a simple, **zero-allocation** API to detect partition maps, enumerate partitions, and access partition metadata.
 
 ---
 
@@ -10,6 +10,7 @@ ApplePartitionMapReader is a lightweight .NET library for reading Apple Partitio
 - Enumerate all partitions with detailed metadata
 - Access partition properties: name, type, start block, block count, status flags
 - Strongly-typed status flags with `ApplePartitionMapStatus` enum
+- **Zero-allocation API** using struct enumerators and span-based operations
 - High-performance parsing using stack-allocated buffers
 
 ---
@@ -43,8 +44,8 @@ if (ApplePartitionMap.IsApplePartitionMap(stream, 0))
 {
     var map = new ApplePartitionMap(stream, 0);
     
-    // Enumerate all partitions
-    foreach (var partition in map.Entries)
+    // Enumerate all partitions (zero allocation)
+    foreach (var partition in map)
     {
         Console.WriteLine($"Name: {partition.Name}");
         Console.WriteLine($"Type: {partition.Type}");
@@ -62,15 +63,82 @@ if (ApplePartitionMap.IsApplePartitionMap(stream, 0))
 
 ---
 
+## Zero-Allocation API
+
+The library is designed for high-performance scenarios with zero heap allocations on the hot path:
+
+### Zero-Allocation Enumeration
+
+```csharp
+// The foreach loop uses a struct enumerator - no allocation!
+foreach (var partition in map)
+{
+    // Process partition
+}
+
+// Get count without enumerating
+int count = map.EntryCount;
+```
+
+### Zero-Allocation String Formatting
+
+`String16` and `String32` types support span-based formatting to avoid string allocations:
+
+```csharp
+Span<char> buffer = stackalloc char[32];
+if (partition.Name.TryFormat(buffer, out int charsWritten))
+{
+    ReadOnlySpan<char> name = buffer[..charsWritten];
+    // Use name without allocation
+}
+
+// Get length without allocating
+int length = partition.Name.Length;
+```
+
+### Zero-Allocation String Comparison
+
+Compare partition names/types directly without allocating strings:
+
+```csharp
+// Compare with a string span - no allocation
+if (partition.Type.Equals("Apple_HFS".AsSpan()))
+{
+    // Handle HFS partition
+}
+
+// Compare with ASCII bytes
+if (partition.Type.Equals("Apple_HFS"u8))
+{
+    // Handle HFS partition
+}
+```
+
+### Zero-Allocation Driver Descriptor Map Access
+
+```csharp
+// Use TryGet pattern to avoid nullable struct boxing
+if (map.TryGetDriverDescriptorMap(out var ddm))
+{
+    Console.WriteLine($"Block size: {ddm.BlockSize}");
+}
+```
+
+---
+
 ## API Overview
 
 ### ApplePartitionMap
 
-- `ApplePartitionMap(Stream stream, int volumeStartOffset)`: Constructs a partition map reader from a seekable, readable stream at the specified offset.
-- `static bool IsApplePartitionMap(Stream stream, int volumeStartOffset)`: Checks if the stream contains a valid Apple Partition Map at the given offset.
-- `IEnumerable<ApplePartitionMapEntry> Entries`: Enumerates all partition entries in the map.
-- `ApplePartitionMapEntry this[int index]`: Gets the partition entry at the specified index.
-- `DriverDescriptorMap? DriverDescriptorMap`: Returns the driver descriptor map read from block 0, or `null` if the block is blank (signature `0x0000`).
+| Member | Description |
+|--------|-------------|
+| `ApplePartitionMap(Stream, int)` | Constructs a partition map reader from a seekable, readable stream at the specified offset |
+| `static bool IsApplePartitionMap(Stream, int)` | Checks if the stream contains a valid Apple Partition Map at the given offset |
+| `int EntryCount` | Gets the number of partition entries in the map |
+| `Enumerator GetEnumerator()` | Returns a struct enumerator for zero-allocation `foreach` support |
+| `ApplePartitionMapEntry this[int]` | Gets the partition entry at the specified index |
+| `DriverDescriptorMap? DriverDescriptorMap` | Gets the driver descriptor map, or `null` if the block is blank |
+| `bool TryGetDriverDescriptorMap(out DriverDescriptorMap)` | Zero-allocation alternative to get the driver descriptor map |
 
 ### ApplePartitionMapEntry
 
@@ -93,6 +161,20 @@ Represents a single partition in the map with the following properties:
 | `BootCodeEntryPoint` | `uint` | Boot code entry point |
 | `BootCodeChecksum` | `uint` | Boot code checksum |
 | `ProcessorType` | `String16` | Processor type (e.g., "68000") |
+
+### String16 / String32
+
+Fixed-size string types with zero-allocation APIs:
+
+| Member | Description |
+|--------|-------------|
+| `int Length` | Gets the string length (excluding null terminator) |
+| `bool TryFormat(Span<char>, out int)` | Formats the string into a span without allocation |
+| `bool Equals(ReadOnlySpan<char>)` | Compares with a character span without allocation |
+| `bool Equals(ReadOnlySpan<byte>)` | Compares with ASCII bytes without allocation |
+| `ReadOnlySpan<byte> AsReadOnlySpan()` | Gets the raw bytes without copying |
+| `string ToString()` | Converts to a string (allocates) |
+| `implicit operator string` | Implicit conversion to string (allocates) |
 
 ### ApplePartitionMapStatus
 

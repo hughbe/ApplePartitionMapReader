@@ -50,10 +50,9 @@ sealed class DumpCommand : Command<DumpSettings>
         }
 
         var map = new ApplePartitionMap(stream, settings.VolumeOffset);
-        var partitions = map.Entries.ToList();
 
         AnsiConsole.MarkupLine($"[green]Apple Partition Map[/]: {input.Name}");
-        AnsiConsole.MarkupLine($"[blue]Total partitions[/]: {partitions.Count}");
+        AnsiConsole.MarkupLine($"[blue]Total partitions[/]: {map.Count}");
         AnsiConsole.WriteLine();
 
         var table = new Table();
@@ -65,14 +64,14 @@ sealed class DumpCommand : Command<DumpSettings>
         table.AddColumn("Size");
         table.AddColumn("Status");
 
-        for (int i = 0; i < partitions.Count; i++)
+        int partitionIndex = 0;
+        foreach (var p in map)
         {
-            var p = partitions[i];
             var sizeBytes = (long)p.PartitionBlockCount * 512;
             var sizeStr = FormatSize(sizeBytes);
 
             table.AddRow(
-                i.ToString(),
+                partitionIndex.ToString(),
                 p.Name.ToString(),
                 p.Type.ToString(),
                 p.PartitionStartBlock.ToString(),
@@ -80,6 +79,7 @@ sealed class DumpCommand : Command<DumpSettings>
                 sizeStr,
                 p.StatusFlags.ToString()
             );
+            partitionIndex++;
         }
 
         AnsiConsole.Write(table);

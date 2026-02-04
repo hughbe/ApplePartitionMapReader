@@ -8,7 +8,7 @@ namespace ApplePartitionMapReader.Utilities;
 /// Represents a fixed-size string of up to 32 bytes.
 /// </summary>
 [InlineArray(Size)]
-public struct String32
+public struct String32 : ISpanFormattable
 {
     /// <summary>
     /// Gets the string value.
@@ -38,22 +38,111 @@ public struct String32
     }
 
     /// <summary>
+    /// Gets the length of the string (excluding null terminator).
+    /// </summary>
+    public readonly int Length
+    {
+        get
+        {
+            ReadOnlySpan<byte> span = AsReadOnlySpan();
+            int length = span.IndexOf((byte)0);
+            return length < 0 ? span.Length : length;
+        }
+    }
+
+    /// <summary>
     /// Gets a span over the elements of the array.
     /// </summary>   
     public Span<byte> AsSpan() =>
         MemoryMarshal.CreateSpan(ref _element0, Size);
 
-    /// <inheritdoc/>
-    public override string ToString()
+    /// <summary>
+    /// Gets a read-only span over the elements of the array.
+    /// </summary>   
+    public readonly ReadOnlySpan<byte> AsReadOnlySpan() =>
+        MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in _element0), Size);
+
+    /// <summary>
+    /// Attempts to format the string into the provided span without allocating.
+    /// </summary>
+    /// <param name="destination">The span to write the string to.</param>
+    /// <param name="charsWritten">When this method returns, contains the number of characters written.</param>
+    /// <returns>true if the formatting was successful; otherwise, false.</returns>
+    public readonly bool TryFormat(Span<char> destination, out int charsWritten)
     {
-        var span = AsSpan();
-        int length = span.IndexOf((byte)0);
-        if (length < 0)
+        ReadOnlySpan<byte> span = AsReadOnlySpan();
+        int length = Length;
+
+        if (destination.Length < length)
         {
-            length = span.Length;
+            charsWritten = 0;
+            return false;
         }
 
+        for (int i = 0; i < length; i++)
+        {
+            destination[i] = (char)span[i];
+        }
+
+        charsWritten = length;
+        return true;
+    }
+
+    /// <inheritdoc/>
+    readonly bool ISpanFormattable.TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider) =>
+        TryFormat(destination, out charsWritten);
+
+    /// <inheritdoc/>
+    readonly string IFormattable.ToString(string? format, IFormatProvider? formatProvider) => ToString();
+
+    /// <inheritdoc/>
+    public override readonly string ToString()
+    {
+        ReadOnlySpan<byte> span = AsReadOnlySpan();
+        int length = Length;
+
         return Encoding.ASCII.GetString(span[..length]);
+    }
+
+    /// <summary>
+    /// Determines whether this string equals the specified character span without allocating.
+    /// </summary>
+    /// <param name="other">The character span to compare with.</param>
+    /// <returns>true if the strings are equal; otherwise, false.</returns>
+    public readonly bool Equals(ReadOnlySpan<char> other)
+    {
+        int length = Length;
+        if (other.Length != length)
+        {
+            return false;
+        }
+
+        ReadOnlySpan<byte> span = AsReadOnlySpan();
+        for (int i = 0; i < length; i++)
+        {
+            if ((char)span[i] != other[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Determines whether this string equals the specified byte span (ASCII) without allocating.
+    /// </summary>
+    /// <param name="other">The byte span to compare with.</param>
+    /// <returns>true if the strings are equal; otherwise, false.</returns>
+    public readonly bool Equals(ReadOnlySpan<byte> other)
+    {
+        int length = Length;
+        if (other.Length != length)
+        {
+            return false;
+        }
+
+        return AsReadOnlySpan()[..length].SequenceEqual(other);
     }
 
     /// <summary>

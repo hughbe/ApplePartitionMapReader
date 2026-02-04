@@ -24,9 +24,23 @@ public class ApplePartitionMapTests
         using var stream = File.OpenRead(filePath);
         var map = new ApplePartitionMap(stream, 0);
 
-        var partitions = map.Entries.ToList();
+        int count = 0;
+        foreach (var partition in map)
+        {
+            count++;
+        }
 
-        Assert.Equal(4, partitions.Count);
+        Assert.Equal(4, count);
+    }
+
+    [Fact]
+    public void EntryCount_TestIso_ReturnsCorrectCount()
+    {
+        var filePath = Path.Combine("Samples", "test.iso");
+        using var stream = File.OpenRead(filePath);
+        var map = new ApplePartitionMap(stream, 0);
+
+        Assert.Equal(4, map.Count);
     }
 
     [Fact]
