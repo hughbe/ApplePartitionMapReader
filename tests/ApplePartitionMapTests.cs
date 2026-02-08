@@ -1,14 +1,25 @@
-﻿namespace ApplePartitionMapReader.Tests;
+﻿using System.Diagnostics;
+
+namespace ApplePartitionMapReader.Tests;
 
 public class ApplePartitionMapTests
 {
     [Theory]
     [InlineData("test.iso")]
+    [InlineData("archive.org/details/cdrom-golden-orchard-10/GoldenOrchard1.0.iso")]
+    [InlineData("archive.org/details/cdrom-golden-orchard-12/GoldenOrchard1.2.iso")]
+    [InlineData("macintoshrepository.org/24254-mactech-vol-1-12-1-17/MacTech-vol-1-12.toast")]
     public void Ctor_Stream(string diskName)
     {
         var filePath = Path.Combine("Samples", diskName);
         using var stream = File.OpenRead(filePath);
-        var map = new ApplePartitionMap(stream, 0);
+        var map = new ApplePartitionMap(stream);
+
+        Debug.WriteLine($"Disk: {diskName}");
+        foreach (var partition in map)
+        {
+            Debug.WriteLine($"Partition: {partition.Name}, Type: {partition.Type}, Start: {partition.PartitionStartBlock}, Count: {partition.PartitionBlockCount}");
+        }
     }
 
     [Fact]
@@ -60,7 +71,7 @@ public class ApplePartitionMapTests
         Assert.Equal(63u, partition.PartitionBlockCount);
         Assert.Equal(0u, partition.DataStartBlock);
         Assert.Equal(63u, partition.DataBlockCount);
-        Assert.Equal(ApplePartitionMapStatus.Valid | ApplePartitionMapStatus.Allocated | ApplePartitionMapStatus.InUse | ApplePartitionMapStatus.Readable | ApplePartitionMapStatus.Writable, partition.StatusFlags);
+        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable, partition.StatusFlags);
     }
 
     [Fact]
@@ -80,7 +91,7 @@ public class ApplePartitionMapTests
         Assert.Equal(32u, partition.PartitionBlockCount);
         Assert.Equal(0u, partition.DataStartBlock);
         Assert.Equal(32u, partition.DataBlockCount);
-        Assert.Equal(ApplePartitionMapStatus.Valid | ApplePartitionMapStatus.Allocated | ApplePartitionMapStatus.InUse | ApplePartitionMapStatus.Bootable | ApplePartitionMapStatus.Readable | ApplePartitionMapStatus.Writable | ApplePartitionMapStatus.BootCodePositionIndependent, partition.StatusFlags);
+        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Bootable | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable | ApplePartitionMapStatusFlags.BootCodePositionIndependent, partition.StatusFlags);
     }
 
     [Fact]
@@ -100,7 +111,7 @@ public class ApplePartitionMapTests
         Assert.Equal(20000u, partition.PartitionBlockCount);
         Assert.Equal(0u, partition.DataStartBlock);
         Assert.Equal(20000u, partition.DataBlockCount);
-        Assert.Equal(ApplePartitionMapStatus.Valid | ApplePartitionMapStatus.Allocated | ApplePartitionMapStatus.InUse | ApplePartitionMapStatus.Readable | ApplePartitionMapStatus.Writable | ApplePartitionMapStatus.OSSpecific1, partition.StatusFlags);
+        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable | ApplePartitionMapStatusFlags.OSSpecific1, partition.StatusFlags);
     }
 
     [Fact]
@@ -120,7 +131,7 @@ public class ApplePartitionMapTests
         Assert.Equal(136274u, partition.PartitionBlockCount);
         Assert.Equal(0u, partition.DataStartBlock);
         Assert.Equal(136274u, partition.DataBlockCount);
-        Assert.Equal(ApplePartitionMapStatus.Valid | ApplePartitionMapStatus.Allocated | ApplePartitionMapStatus.InUse | ApplePartitionMapStatus.Readable | ApplePartitionMapStatus.Writable, partition.StatusFlags);
+        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable, partition.StatusFlags);
     }
 
     [Fact]
