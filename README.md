@@ -9,7 +9,7 @@ ApplePartitionMapReader is a lightweight .NET library for reading Apple Partitio
 - Detect Apple Partition Maps in disk images
 - Enumerate all partitions with detailed metadata
 - Access partition properties: name, type, start block, block count, status flags
-- Strongly-typed status flags with `ApplePartitionMapStatus` enum
+- Strongly-typed status flags with `ApplePartitionMapStatusFlags` enum
 - **Zero-allocation API** using struct enumerators and span-based operations
 - High-performance parsing using stack-allocated buffers
 
@@ -154,7 +154,7 @@ Represents a single partition in the map with the following properties:
 | `PartitionBlockCount` | `uint` | Number of blocks in the partition |
 | `DataStartBlock` | `uint` | First logical block of data area |
 | `DataBlockCount` | `uint` | Number of blocks in data area |
-| `StatusFlags` | `ApplePartitionMapStatus` | Partition status flags |
+| `StatusFlags` | `ApplePartitionMapStatusFlags` | Partition status flags |
 | `BootCodeStartBlock` | `uint` | First logical block of boot code |
 | `BootCodeBlockCount` | `uint` | Size of boot code in bytes |
 | `BootCodeAddress` | `uint` | Boot code load address |
@@ -176,7 +176,7 @@ Fixed-size string types with zero-allocation APIs:
 | `string ToString()` | Converts to a string (allocates) |
 | `implicit operator string` | Implicit conversion to string (allocates) |
 
-### ApplePartitionMapStatus
+### ApplePartitionMapStatusFlags
 
 Flags enum representing partition status:
 
@@ -211,6 +211,28 @@ Flags enum representing partition status:
 
 ---
 
+## Apple Partition Map (APM) Format
+
+The Apple Partition Map (APM) is the partitioning scheme used on classic Macintosh disks and disk images. Key points:
+
+- Block size is 512 bytes. The Driver Descriptor Map (if present) occupies block 0.
+- The partition map entries begin at block 1. Each partition map entry is stored in a 512-byte block, with the entry structure occupying the first 136 bytes of the block.
+- Each entry starts with a 2-byte signature `0x504D` (ASCII "PM"). Important fields include:
+    - `pmMapBlkCnt` (map entry count)
+    - `pmPyPartStart` (partition start block)
+    - `pmPartBlkCnt` (partition block count)
+    - `pmPartName` (32-byte name)
+    - `pmParType` (32-byte type)
+
+- Partition start and size are expressed in 512-byte blocks; to compute a partition's byte offset and length, multiply the start block and block count by 512.
+
+For more detailed documentation see:
+
+- CiderPress APM notes: https://ciderpress2.com/formatdoc/APM-notes.html
+- libvsapm APM documentation: https://github.com/libyal/libvsapm/blob/main/documentation/Apple%20partition%20map%20(APM)%20format.asciidoc
+
+This library follows these conventions when reading and exposing partition metadata via the `ApplePartitionMap` and `ApplePartitionMapEntry` types.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
@@ -228,3 +250,34 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [BinaryIIReader](https://github.com/hughbe/BinaryIIReader) - Reader for Binary II (.bny, .bxy) archives
 - [StuffItReader](https://github.com/hughbe/StuffItReader) - Reader for StuffIt (.sit) archives
 - [ShrinkItReader](https://github.com/hughbe/ShrinkItReader) - Reader for ShrinkIt (.shk, .sdk) archives
+
+## Command-line Dumper
+
+The repository includes a small command-line utility in the `dumper` project that can list and extract partitions from disk images using the Apple Partition Map.
+
+- Run the dumper from the repository root:
+
+```bash
+dotnet run --project dumper -- <command> [options]
+```
+
+- Extract partitions:
+
+```bash
+dotnet run --project dumper -- extract <input> --output <dir> [--offset <bytes>] [--index <n>]
+```
+
+Options:
+- `--output` : Destination directory for extracted partitions (default: current directory).
+- `--offset` : Byte offset within the input file where the partition map starts (default: 0).
+- `--index`  : Zero-based partition index to extract a single partition.
+
+Example usages:
+
+```bash
+dotnet run --project dumper -- extract tests/Samples/test.iso --output extracted-test
+dotnet run --project dumper -- extract tests/Samples/test.iso --output extracted --index 2
+dotnet run --project dumper -- extract <input> --offset 512 --output extracted
+```
+
+Extracted files are named `<index>-<partitionName>.img` (invalid filename characters are replaced with underscores).
