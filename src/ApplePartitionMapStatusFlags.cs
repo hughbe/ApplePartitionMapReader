@@ -4,7 +4,7 @@ namespace ApplePartitionMapReader;
 /// Represents the status flags for an Apple Partition Map entry.
 /// </summary>
 [Flags]
-public enum ApplePartitionMapStatus : uint
+public enum ApplePartitionMapStatusFlags : uint
 {
     /// <summary>
     /// No flags set.

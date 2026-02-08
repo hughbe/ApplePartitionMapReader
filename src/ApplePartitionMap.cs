@@ -13,6 +13,14 @@ public readonly struct ApplePartitionMap
     private readonly int _streamStartOffset;
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="ApplePartitionMap"/> struct using the current position of the provided stream as the start of the volume.
+    /// </summary>
+    /// <param name="stream">The stream containing the HFS volume data. The current position of the stream will be used as the start offset for the volume.</param>
+    public ApplePartitionMap(Stream stream) : this(stream, (int)stream.Position)
+    {
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ApplePartitionMap"/> struct.
     /// </summary>
     /// <param name="stream">The stream containing the HFS volume data.</param>

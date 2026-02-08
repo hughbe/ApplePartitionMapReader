@@ -67,7 +67,7 @@ public struct ApplePartitionMapEntry
     /// <summary>
     /// Gets the status flags.
     /// </summary>
-    public ApplePartitionMapStatus StatusFlags { get; }
+    public ApplePartitionMapStatusFlags StatusFlags { get; }
 
     /// <summary>
     /// Gets the boot code start sector.
@@ -165,7 +165,7 @@ public struct ApplePartitionMapEntry
         offset += 4;
 
         // +$058 / 4: pmPartStatus - partition status information (used by A/UX)
-        StatusFlags = (ApplePartitionMapStatus)BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
+        StatusFlags = (ApplePartitionMapStatusFlags)BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
         // +$05c / 4: pmLgBootStart - first logical block of boot code
