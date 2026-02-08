@@ -47,7 +47,31 @@ public struct DriverDescriptorMapEntries
     
     /// <summary>
     /// Gets a span over the elements of the array.
-    /// </summary>   
+    /// </summary>
     public Span<DriverDescriptorMapEntry> AsSpan() =>
         MemoryMarshal.CreateSpan(ref _entry0, Count);
+    
+    /// <summary>
+    /// Gets a span over the elements of the array.
+    /// </summary>
+    public readonly ReadOnlySpan<DriverDescriptorMapEntry> AsReadOnlySpan() =>
+        MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in _entry0), Count);
+
+    /// <summary>
+    /// Writes all entries to the specified span in big-endian format.
+    /// </summary>
+    /// <param name="data">The destination span. Must be at least <see cref="Size"/> bytes.</param>
+    public readonly void WriteTo(Span<byte> data)
+    {
+        if (data.Length < Size)
+        {
+            throw new ArgumentException($"Destination must be at least {Size} bytes long.", nameof(data));
+        }
+
+        ReadOnlySpan<DriverDescriptorMapEntry> entries = AsReadOnlySpan();
+        for (int i = 0; i < Count; i++)
+        {
+            entries[i].WriteTo(data.Slice(i * DriverDescriptorMapEntry.Size, DriverDescriptorMapEntry.Size));
+        }
+    }
 }

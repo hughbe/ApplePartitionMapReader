@@ -203,4 +203,145 @@ public struct ApplePartitionMapEntry
         // +$088 /376: (reserved)
         Debug.Assert(offset == data.Length, "Did not read the expected number of bytes for ApplePartitionMapEntry.");
     }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ApplePartitionMapEntry"/> struct with the specified values.
+    /// </summary>
+    /// <param name="mapEntryCount">The total number of entries in the partition map.</param>
+    /// <param name="partitionStartBlock">The block number of the first block of the partition.</param>
+    /// <param name="partitionBlockCount">The number of blocks in the partition.</param>
+    /// <param name="name">The partition name.</param>
+    /// <param name="type">The partition type.</param>
+    /// <param name="dataStartBlock">The first logical block of the data area.</param>
+    /// <param name="dataBlockCount">The number of blocks in the data area.</param>
+    /// <param name="statusFlags">The partition status flags.</param>
+    /// <param name="bootCodeStartBlock">The first logical block of boot code.</param>
+    /// <param name="bootCodeBlockCount">The size of boot code, in bytes.</param>
+    /// <param name="bootCodeAddress">The boot code load address.</param>
+    /// <param name="bootCodeEntryPoint">The boot code entry point.</param>
+    /// <param name="bootCodeChecksum">The boot code checksum.</param>
+    /// <param name="processorType">The processor type string.</param>
+    public ApplePartitionMapEntry(
+        uint mapEntryCount,
+        uint partitionStartBlock,
+        uint partitionBlockCount,
+        String32 name,
+        String32 type,
+        uint dataStartBlock,
+        uint dataBlockCount,
+        ApplePartitionMapStatusFlags statusFlags,
+        uint bootCodeStartBlock = 0,
+        uint bootCodeBlockCount = 0,
+        uint bootCodeAddress = 0,
+        uint bootCodeEntryPoint = 0,
+        uint bootCodeChecksum = 0,
+        String16 processorType = default)
+    {
+        Signature = (ushort)BlockSignature;
+        Reserved1 = 0;
+        MapEntryCount = mapEntryCount;
+        PartitionStartBlock = partitionStartBlock;
+        PartitionBlockCount = partitionBlockCount;
+        Name = name;
+        Type = type;
+        DataStartBlock = dataStartBlock;
+        DataBlockCount = dataBlockCount;
+        StatusFlags = statusFlags;
+        BootCodeStartBlock = bootCodeStartBlock;
+        BootCodeBlockCount = bootCodeBlockCount;
+        BootCodeAddress = bootCodeAddress;
+        Reserved2 = 0;
+        BootCodeEntryPoint = bootCodeEntryPoint;
+        Reserved3 = 0;
+        BootCodeChecksum = bootCodeChecksum;
+        ProcessorType = processorType;
+    }
+
+    /// <summary>
+    /// Writes this partition map entry to the specified span in big-endian format.
+    /// </summary>
+    /// <param name="data">The destination span. Must be at least <see cref="Size"/> bytes.</param>
+    public readonly void WriteTo(Span<byte> data)
+    {
+        if (data.Length < Size)
+        {
+            throw new ArgumentException($"Destination must be at least {Size} bytes long.", nameof(data));
+        }
+
+        int offset = 0;
+
+        // +$000 / 2: pmSig
+        BinaryPrimitives.WriteUInt16BigEndian(data[offset..], Signature);
+        offset += 2;
+
+        // +$002 / 2: pmSigPad
+        BinaryPrimitives.WriteUInt16BigEndian(data[offset..], Reserved1);
+        offset += 2;
+
+        // +$004 / 4: pmMapBlkCnt
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], MapEntryCount);
+        offset += 4;
+
+        // +$008 / 4: pmPyPartStart
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], PartitionStartBlock);
+        offset += 4;
+
+        // +$00c / 4: pmPartBlkCnt
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], PartitionBlockCount);
+        offset += 4;
+
+        // +$010 /32: pmPartName
+        Name.AsReadOnlySpan().CopyTo(data.Slice(offset, String32.Size));
+        offset += String32.Size;
+
+        // +$030 /32: pmParType
+        Type.AsReadOnlySpan().CopyTo(data.Slice(offset, String32.Size));
+        offset += String32.Size;
+
+        // +$050 / 4: pmLgDataStart
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], DataStartBlock);
+        offset += 4;
+
+        // +$054 / 4: pmDataCnt
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], DataBlockCount);
+        offset += 4;
+
+        // +$058 / 4: pmPartStatus
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], (uint)StatusFlags);
+        offset += 4;
+
+        // +$05c / 4: pmLgBootStart
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], BootCodeStartBlock);
+        offset += 4;
+
+        // +$060 / 4: pmBootSize
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], BootCodeBlockCount);
+        offset += 4;
+
+        // +$064 / 4: pmBootAddr
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], BootCodeAddress);
+        offset += 4;
+
+        // +$068 / 4: (reserved)
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], Reserved2);
+        offset += 4;
+
+        // +$06c / 4: pmBootEntry
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], BootCodeEntryPoint);
+        offset += 4;
+
+        // +$070 / 4: (reserved)
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], Reserved3);
+        offset += 4;
+
+        // +$074 / 4: pmBootCksum
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], BootCodeChecksum);
+        offset += 4;
+
+        // +$078 /16: pmProcessor
+        ProcessorType.AsReadOnlySpan().CopyTo(data.Slice(offset, String16.Size));
+        offset += String16.Size;
+
+        Debug.Assert(offset == Size, "Did not write the expected number of bytes for ApplePartitionMapEntry.");
+    }
 }

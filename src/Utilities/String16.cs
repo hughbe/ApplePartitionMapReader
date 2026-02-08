@@ -146,6 +146,29 @@ public struct String16 : ISpanFormattable
     }
 
     /// <summary>
+    /// Creates a <see cref="String16"/> from an ASCII string.
+    /// </summary>
+    /// <param name="value">The string value to convert. Must be at most 16 characters.</param>
+    /// <returns>A new <see cref="String16"/> containing the ASCII representation of the string.</returns>
+    /// <exception cref="ArgumentException">Thrown when the string is longer than 16 characters.</exception>
+    public static String16 FromString(ReadOnlySpan<char> value)
+    {
+        if (value.Length > Size)
+        {
+            throw new ArgumentException($"String must be at most {Size} characters long.", nameof(value));
+        }
+
+        var result = new String16();
+        Span<byte> span = result.AsSpan();
+        for (int i = 0; i < value.Length; i++)
+        {
+            span[i] = (byte)value[i];
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Implicitly converts the <see cref="String16"/> to a <see cref="string"/>.
     /// </summary>
     /// <param name="str">The <see cref="String16"/> instance.</param>

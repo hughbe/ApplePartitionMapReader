@@ -114,4 +114,66 @@ public readonly struct DriverDescriptorMap
 
         Debug.Assert(offset == data.Length, "Did not consume all bytes for Driver Descriptor Map.");
     }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DriverDescriptorMap"/> struct with the specified values.
+    /// </summary>
+    /// <param name="blockSize">The block size of the device (usually 512).</param>
+    /// <param name="blockCount">The total number of blocks on the device.</param>
+    /// <param name="deviceType">The device type.</param>
+    /// <param name="deviceId">The device ID.</param>
+    /// <param name="driverData">The driver data.</param>
+    /// <param name="driverCount">The number of driver descriptors.</param>
+    /// <param name="entries">The driver descriptor map entries.</param>
+    public DriverDescriptorMap(ushort blockSize, uint blockCount, ushort deviceType, ushort deviceId, uint driverData, ushort driverCount, DriverDescriptorMapEntries entries)
+    {
+        Signature = 0x4552; // 'ER'
+        BlockSize = blockSize;
+        BlockCount = blockCount;
+        DeviceType = deviceType;
+        DeviceId = deviceId;
+        DriverData = driverData;
+        DriverCount = driverCount;
+        Entries = entries;
+    }
+
+    /// <summary>
+    /// Writes this Driver Descriptor Map to the specified span in big-endian format.
+    /// </summary>
+    /// <param name="data">The destination span. Must be at least <see cref="Size"/> bytes.</param>
+    public readonly void WriteTo(Span<byte> data)
+    {
+        if (data.Length < Size)
+        {
+            throw new ArgumentException($"Destination must be at least {Size} bytes long.", nameof(data));
+        }
+
+        int offset = 0;
+
+        BinaryPrimitives.WriteUInt16BigEndian(data.Slice(offset, 2), Signature);
+        offset += 2;
+
+        BinaryPrimitives.WriteUInt16BigEndian(data.Slice(offset, 2), BlockSize);
+        offset += 2;
+
+        BinaryPrimitives.WriteUInt32BigEndian(data.Slice(offset, 4), BlockCount);
+        offset += 4;
+
+        BinaryPrimitives.WriteUInt16BigEndian(data.Slice(offset, 2), DeviceType);
+        offset += 2;
+
+        BinaryPrimitives.WriteUInt16BigEndian(data.Slice(offset, 2), DeviceId);
+        offset += 2;
+
+        BinaryPrimitives.WriteUInt32BigEndian(data.Slice(offset, 4), DriverData);
+        offset += 4;
+
+        BinaryPrimitives.WriteUInt16BigEndian(data.Slice(offset, 2), DriverCount);
+        offset += 2;
+
+        Entries.WriteTo(data.Slice(offset, DriverDescriptorMapEntries.Size));
+        offset += DriverDescriptorMapEntries.Size;
+
+        Debug.Assert(offset == Size, "Did not write the expected number of bytes for Driver Descriptor Map.");
+    }
 }

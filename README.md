@@ -1,6 +1,6 @@
 # ApplePartitionMapReader
 
-ApplePartitionMapReader is a lightweight .NET library for reading Apple Partition Maps from classic Macintosh disk images. It provides a simple, **zero-allocation** API to detect partition maps, enumerate partitions, and access partition metadata.
+ApplePartitionMapReader is a lightweight .NET library for reading and writing Apple Partition Maps from classic Macintosh disk images. It provides a simple, **zero-allocation** reading API to detect partition maps, enumerate partitions, and access partition metadata, as well as a writing API to create new disk images with custom partitions.
 
 ---
 
@@ -10,8 +10,10 @@ ApplePartitionMapReader is a lightweight .NET library for reading Apple Partitio
 - Enumerate all partitions with detailed metadata
 - Access partition properties: name, type, start block, block count, status flags
 - Strongly-typed status flags with `ApplePartitionMapStatusFlags` enum
-- **Zero-allocation API** using struct enumerators and span-based operations
+- **Zero-allocation reading API** using struct enumerators and span-based operations
 - High-performance parsing using stack-allocated buffers
+- **Writing API** to create new Apple Partition Map disk images with custom partitions
+- Roundtrip support: write a disk image and read it back
 
 ---
 
@@ -63,7 +65,46 @@ if (ApplePartitionMap.IsApplePartitionMap(stream, 0))
 
 ---
 
-## Zero-Allocation API
+## Writing a Disk Image
+
+Use `ApplePartitionMapWriter` to create a new disk image containing an Apple Partition Map:
+
+```csharp
+using ApplePartitionMapReader;
+
+var writer = new ApplePartitionMapWriter();
+
+// Add partitions with their raw filesystem data
+byte[] hfsData = File.ReadAllBytes("hfs-volume.dsk");
+byte[] mfsData = File.ReadAllBytes("mfs-volume.dsk");
+writer.AddPartition("HFS Volume", "Apple_HFS", hfsData);
+writer.AddPartition("MFS Volume", "Apple_MFS", mfsData);
+
+// Write the complete disk image (DDM + partition map + data)
+using var output = File.Create("combined.dsk");
+writer.WriteTo(output);
+```
+
+The writer automatically:
+- Creates the Driver Descriptor Map at block 0
+- Creates a self-referencing `Apple_partition_map` entry as entry 0
+- Lays out partition data sequentially after the map entries
+- Pads partition data to 512-byte block boundaries
+
+You can also specify custom status flags per partition:
+
+```csharp
+writer.AddPartition("Boot", "Apple_HFS", bootData,
+    ApplePartitionMapStatusFlags.Valid |
+    ApplePartitionMapStatusFlags.Allocated |
+    ApplePartitionMapStatusFlags.InUse |
+    ApplePartitionMapStatusFlags.Bootable |
+    ApplePartitionMapStatusFlags.Readable);
+```
+
+---
+
+## Zero-Allocation Reading API
 
 The library is designed for high-performance scenarios with zero heap allocations on the hot path:
 
@@ -140,6 +181,13 @@ if (map.TryGetDriverDescriptorMap(out var ddm))
 | `DriverDescriptorMap? DriverDescriptorMap` | Gets the driver descriptor map, or `null` if the block is blank |
 | `bool TryGetDriverDescriptorMap(out DriverDescriptorMap)` | Zero-allocation alternative to get the driver descriptor map |
 
+### ApplePartitionMapWriter
+
+| Member | Description |
+|--------|-------------|
+| `void AddPartition(string, string, byte[], ApplePartitionMapStatusFlags)` | Adds a partition with the given name, type, raw data, and optional status flags |
+| `void WriteTo(Stream)` | Writes the complete disk image (DDM + partition map + partition data) to a stream |
+
 ### ApplePartitionMapEntry
 
 Represents a single partition in the map with the following properties:
@@ -162,6 +210,13 @@ Represents a single partition in the map with the following properties:
 | `BootCodeChecksum` | `uint` | Boot code checksum |
 | `ProcessorType` | `String16` | Processor type (e.g., "68000") |
 
+The entry also supports writing:
+
+| Member | Description |
+|--------|-------------|
+| `ApplePartitionMapEntry(uint, uint, uint, String32, String32, uint, uint, ApplePartitionMapStatusFlags, ...)` | Constructs an entry with the specified field values for writing |
+| `void WriteTo(Span<byte>)` | Writes the entry to a span in big-endian format |
+
 ### String16 / String32
 
 Fixed-size string types with zero-allocation APIs:
@@ -173,6 +228,7 @@ Fixed-size string types with zero-allocation APIs:
 | `bool Equals(ReadOnlySpan<char>)` | Compares with a character span without allocation |
 | `bool Equals(ReadOnlySpan<byte>)` | Compares with ASCII bytes without allocation |
 | `ReadOnlySpan<byte> AsReadOnlySpan()` | Gets the raw bytes without copying |
+| `static FromString(ReadOnlySpan<char>)` | Creates a fixed-size string from an ASCII character span (for writing) |
 | `string ToString()` | Converts to a string (allocates) |
 | `implicit operator string` | Implicit conversion to string (allocates) |
 
@@ -231,7 +287,7 @@ For more detailed documentation see:
 - CiderPress APM notes: https://ciderpress2.com/formatdoc/APM-notes.html
 - libvsapm APM documentation: https://github.com/libyal/libvsapm/blob/main/documentation/Apple%20partition%20map%20(APM)%20format.asciidoc
 
-This library follows these conventions when reading and exposing partition metadata via the `ApplePartitionMap` and `ApplePartitionMapEntry` types.
+This library follows these conventions when reading and writing partition metadata via the `ApplePartitionMap`, `ApplePartitionMapEntry`, and `ApplePartitionMapWriter` types.
 
 ## License
 

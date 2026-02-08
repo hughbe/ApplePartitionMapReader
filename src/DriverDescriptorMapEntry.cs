@@ -55,4 +55,42 @@ public readonly struct DriverDescriptorMapEntry
 
         Debug.Assert(offset == data.Length, "Did not read the expected amount of data for DriverDescriptorMapEntry.");
     }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DriverDescriptorMapEntry"/> struct with the specified values.
+    /// </summary>
+    /// <param name="startBlock">The starting block of the driver.</param>
+    /// <param name="blockCount">The number of blocks occupied by the driver.</param>
+    /// <param name="type">The system type of the driver.</param>
+    public DriverDescriptorMapEntry(uint startBlock, ushort blockCount, ushort type)
+    {
+        StartBlock = startBlock;
+        BlockCount = blockCount;
+        Type = type;
+    }
+
+    /// <summary>
+    /// Writes this entry to the specified span in big-endian format.
+    /// </summary>
+    /// <param name="data">The destination span. Must be at least <see cref="Size"/> bytes.</param>
+    public readonly void WriteTo(Span<byte> data)
+    {
+        if (data.Length < Size)
+        {
+            throw new ArgumentException($"Destination must be at least {Size} bytes long.", nameof(data));
+        }
+
+        int offset = 0;
+
+        BinaryPrimitives.WriteUInt32BigEndian(data.Slice(offset, 4), StartBlock);
+        offset += 4;
+
+        BinaryPrimitives.WriteUInt16BigEndian(data.Slice(offset, 2), BlockCount);
+        offset += 2;
+
+        BinaryPrimitives.WriteUInt16BigEndian(data.Slice(offset, 2), Type);
+        offset += 2;
+
+        Debug.Assert(offset == Size, "Did not write the expected amount of data for DriverDescriptorMapEntry.");
+    }
 }
