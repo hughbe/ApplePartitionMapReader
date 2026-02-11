@@ -43,7 +43,7 @@ public readonly struct DriverDescriptorMap
     /// <summary>
     /// Gets the driver data.
     /// </summary>
-    public uint DriverData { get; }
+    public uint Data { get; }
 
     /// <summary>
     /// Gets the number of driver descriptors.
@@ -68,11 +68,14 @@ public readonly struct DriverDescriptorMap
             throw new ArgumentException($"Data span must be exactly {Size} bytes long.", nameof(data));
         }
 
-        // Structure documented in https://ciderpress2.com/formatdoc/APM-notes.html
+        // Structure documented in https://dev.os9.ca/techpubs/mac/pdf/Devices/SCSI_Manager.pdf
+        // 3-23 to 3-24, https://ciderpress2.com/formatdoc/APM-notes.html
         // and https://github.com/apple-oss-distributions/IOStorageFamily/blob/IOStorageFamily-116/IOApplePartitionScheme.h#L86-L97
         int offset = 0;
 
-        // +$00 / 2: sbSig - device signature (big-endian 0x4552, 'ER')
+        // The device signature. This field should contain the value of the
+        // sbSIGWord constant ($4552) to indicate that the driver descriptor
+        // record is valid (meaning that the disk has been formatted).
         Signature = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset, 2));
         offset += 2;
 
@@ -81,34 +84,41 @@ public readonly struct DriverDescriptorMap
             throw new InvalidDataException("Invalid Driver Descriptor Map signature.");
         }
 
-        // +$02 / 2: sbBlkSize - block size of the device (usually 512)
+        // sbSig The size of the blocks on the device, in bytes.
         BlockSize = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset, 2));
         offset += 2;
 
-        // +$04 / 4: sbBlkCount - number of blocks on the device
+        // sbBlkSize The number of blocks on the device.
         BlockCount = BinaryPrimitives.ReadUInt32BigEndian(data.Slice(offset, 4));
         offset += 4;
 
-        // +$08 / 4: sbDevType - (reserved)
+        // sbDevType Reserved.
         DeviceType = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset, 2));
         offset += 2;
 
-        // +$0a / 2: sbDevId - (reserved)
+        // sbDevId Reserved.
         DeviceId = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset, 2));
         offset += 2;
 
-        // +$0c / 4: sbData - (reserved)
-        DriverData = BinaryPrimitives.ReadUInt32BigEndian(data.Slice(offset, 4));
+        // sbData Reserved.
+        Data = BinaryPrimitives.ReadUInt32BigEndian(data.Slice(offset, 4));
         offset += 4;
 
-        // +$10 / 2: sbDrvrCount - number of driver descriptor entries
+        // sbDrvrCount The number of drivers installed on the disk. More than one driver
+        // may be included when multiple operating systems or processors are
+        // supported. The drivers can be located anywhere on the device and
+        // can be as large as necessary.
         DriverCount = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset, 2));
         offset += 2;
 
-        // +$12 / 4: ddBlock - first driver's starting block
-        // +$16 / 2: ddSize - size of the driver, in 512-byte blocks
-        // +$18 / 2: ddType - operating system type (MacOS = 1)
-        // +$1a /486: ddPad - ddBlock/ddSize/ddType entries for additional drivers (8 bytes each)
+        // ddBlock The physical block number of the first block of the first device
+        // driver on the disk.
+        // ddSize The size of the device driver, in 512-byte blocks.
+        // ddType The operating system or processor supported by the driver. A value
+        // of 1 specifies the Macintosh Operating System. The values 0
+        // through 15 are reserved for use by Apple Computer, Inc.
+        // ddPad Additional ddBlock, ddSize, and ddType entries for other device
+        // drivers on the disk.
         Entries = new DriverDescriptorMapEntries(data.Slice(offset, DriverDescriptorMapEntries.Size));
         offset += DriverDescriptorMapEntries.Size;
 
@@ -122,17 +132,17 @@ public readonly struct DriverDescriptorMap
     /// <param name="blockCount">The total number of blocks on the device.</param>
     /// <param name="deviceType">The device type.</param>
     /// <param name="deviceId">The device ID.</param>
-    /// <param name="driverData">The driver data.</param>
+    /// <param name="data">The driver data.</param>
     /// <param name="driverCount">The number of driver descriptors.</param>
     /// <param name="entries">The driver descriptor map entries.</param>
-    public DriverDescriptorMap(ushort blockSize, uint blockCount, ushort deviceType, ushort deviceId, uint driverData, ushort driverCount, DriverDescriptorMapEntries entries)
+    public DriverDescriptorMap(ushort blockSize, uint blockCount, ushort deviceType, ushort deviceId, uint data, ushort driverCount, DriverDescriptorMapEntries entries)
     {
         Signature = 0x4552; // 'ER'
         BlockSize = blockSize;
         BlockCount = blockCount;
         DeviceType = deviceType;
         DeviceId = deviceId;
-        DriverData = driverData;
+        Data = data;
         DriverCount = driverCount;
         Entries = entries;
     }
@@ -165,7 +175,7 @@ public readonly struct DriverDescriptorMap
         BinaryPrimitives.WriteUInt16BigEndian(data.Slice(offset, 2), DeviceId);
         offset += 2;
 
-        BinaryPrimitives.WriteUInt32BigEndian(data.Slice(offset, 4), DriverData);
+        BinaryPrimitives.WriteUInt32BigEndian(data.Slice(offset, 4), Data);
         offset += 4;
 
         BinaryPrimitives.WriteUInt16BigEndian(data.Slice(offset, 2), DriverCount);

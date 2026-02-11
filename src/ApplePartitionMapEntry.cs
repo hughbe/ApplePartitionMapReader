@@ -27,12 +27,12 @@ public struct ApplePartitionMapEntry
     /// <summary>
     /// Gets the first reserved field.
     /// </summary>
-    public ushort Reserved1 { get; }
+    public ushort Padding { get; }
 
     /// <summary>
     /// Gets the total number of entries in the partition map.
     /// </summary>
-    public uint MapEntryCount { get; }
+    public uint MapBlockCount { get; }
 
     /// <summary>
     /// Gets the partition start sector.
@@ -67,7 +67,7 @@ public struct ApplePartitionMapEntry
     /// <summary>
     /// Gets the status flags.
     /// </summary>
-    public ApplePartitionMapStatusFlags StatusFlags { get; }
+    public ApplePartitionMapStatusFlags Status { get; }
 
     /// <summary>
     /// Gets the boot code start sector.
@@ -85,9 +85,9 @@ public struct ApplePartitionMapEntry
     public uint BootCodeAddress { get; }
 
     /// <summary>
-    /// Gets the second reserved field.
+    /// Gets the second boot code address (reserved).
     /// </summary>
-    public uint Reserved2 { get; }
+    public uint BootCodeAddress2 { get; }
 
     /// <summary>
     /// Gets the boot code entry point.
@@ -95,9 +95,9 @@ public struct ApplePartitionMapEntry
     public uint BootCodeEntryPoint { get; }
 
     /// <summary>
-    /// Gets the third reserved field.
+    /// Gets the second boot code entry point.
     /// </summary>
-    public uint Reserved3 { get; }
+    public uint BootCodeEntryPoint2 { get; }
 
     /// <summary>
     /// Gets the boot code checksum.
@@ -121,10 +121,13 @@ public struct ApplePartitionMapEntry
             throw new ArgumentException($"Partition map entry data must be exactly {Size} bytes long.", nameof(data));
         }
 
-        // Structure documented in https://ciderpress2.com/formatdoc/APM-notes.html
+        // Structure documented in https://dev.os9.ca/techpubs/mac/pdf/Devices/SCSI_Manager.pdf
+        // 3-2 to 53-27 and https://ciderpress2.com/formatdoc/APM-notes.html
         int offset = 0;
 
-        // +$000 / 2: pmSig - partition signature (big-endian 0x504d, 'PM')
+        // pmSig The partition signature. This field should contain the value of the
+        // pMapSIG constant ($504D). An earlier but still supported version
+        // uses the value $5453.
         Signature = BinaryPrimitives.ReadUInt16BigEndian(data[offset..]);
         offset += 2;
         if (Signature != 0x504D) // 'PM'
@@ -132,82 +135,127 @@ public struct ApplePartitionMapEntry
             throw new InvalidDataException("Invalid Apple Partition Map Entry signature.");
         }
 
-        // +$002 / 2: pmSigPad - (reserved)
-        Reserved1 = BinaryPrimitives.ReadUInt16BigEndian(data[offset..]);
+        // pmSigPad Reserved
+        Padding = BinaryPrimitives.ReadUInt16BigEndian(data[offset..]);
         offset += 2;
 
-        // +$004 / 4: pmMapBlkCnt - number of blocks in partition map
-        MapEntryCount = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
+        // pmMapBlkCnt The size of the partition map, in blocks.
+        MapBlockCount = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$008 / 4: pmPyPartStart - block number of first block of partition
+        // pmPyPartStart The physical block number of the first block of the partition.
         PartitionStartBlock = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$00c / 4: pmPartBlkCnt - number of blocks in partition
+        // pmPartBlkCnt The size of the partition, in blocks.
         PartitionBlockCount = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$010 /32: pmPartName - partition name string (optional; some special values)
+        // pmPartName An optional partition name, up to 32 bytes in length. If the string
+        // is less than 32 bytes, it must be terminated with the ASCII NUL
+        // character (a byte with a value of 0). If the partition name begins
+        // with Maci (for Macintosh), the Start Manager will perform
+        // checksum verification of the device driver’s boot code. Otherwise,
+        // this field is ignored.
         Name = new String32(data.Slice(offset, String32.Size));
         offset += String32.Size;
 
-        // +$030 /32: pmParType - partition type string (names beginning with "Apple_" are reserved)
+        // pmParType A string that identifies the partition type. Names that begin with
+        // Apple_ are reserved for use by Apple Computer, Inc. Names
+        // shorter than 32 characters must be terminated with the NUL
+        // character. The following standard partition types are defined for
+        // the pmParType field:
+        // String Meaning
+        // Apple_partition_map Partition contains a partition map
+        // Apple_Driver Partition contains a device driver
+        // Apple_Driver43 Partition contains a SCSI Manager 4.3
+        // device driver
+        // Apple_MFS Partition uses the original Macintosh
+        // File System (64K ROM version)
+        // Apple_HFS Partition uses the Hierarchical File
+        // System implemented in 128K and
+        // later ROM versions
+        // Apple_Unix_SVR2 Partition uses the Unix file system
+        // Apple_PRODOS Partition uses the ProDOS file system
+        // Apple_Free Partition is unused
+        // Apple_Scratch Partition is empty
         Type = new String32(data.Slice(offset, String32.Size));
         offset += String32.Size;
 
-        // +$050 / 4: pmLgDataStart - first logical block of data area (for e.g. A/UX)
+        // pmLgDataStart The logical block number of the first block containing file system
+        // data. This is for use by operating systems, such as A/UX, in which
+        // the file system does not begin at logical block 0 of the partition. 
         DataStartBlock = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$054 / 4: pmDataCnt - number of blocks in data area (for e.g. A/UX)
+        // pmDataCnt The size of the file system data area, in blocks. This is used in
+        // conjunction with the pmLgDataStart field, for those operating
+        // systems in which the file system does not begin at logical block 0
+        // of the partition.
         DataBlockCount = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$058 / 4: pmPartStatus - partition status information (used by A/UX)
-        StatusFlags = (ApplePartitionMapStatusFlags)BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
+        // pmPartStatus Two words of status information about the partition. The low-order
+        // byte of the low-order word contains status information used only
+        // by the A/UX operating system:
+        // Bit Meaning
+        // 0 Set if a valid partition map entry
+        // 1 Set if partition is already allocated; clear if available
+        // 2 Set if partition is in use; may be cleared after a system reset
+        // 3 Set if partition contains valid boot information
+        // 4 Set if partition allows reading
+        // 5 Set if partition allows writing
+        // 6 Set if boot code is position-independent
+        // 7 Unused
+        // The remaining bytes of the pmPartStatus field are reserved. 
+        Status = (ApplePartitionMapStatusFlags)BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$05c / 4: pmLgBootStart - first logical block of boot code
+        // pmLgBootStart The logical block number of the first block containing boot code.
         BootCodeStartBlock = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$060 / 4: pmBootSize - size of boot code, in bytes
+        // pmBootSize The size of the boot code, in bytes.
         BootCodeBlockCount = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$064 / 4: pmBootAddr - boot code load address
+        // pmBootAddr The memory address where the boot code is to be loaded.
         BootCodeAddress = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$06c / 4: pmBootEntry - boot code entry point
-        Reserved2 = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
+        // pmBootAddr2 Reserved.
+        BootCodeAddress2 = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$06c / 4: pmBootEntry - boot code entry point
+        // pmBootEntry The memory address to which the Start Manager will transfer
+        // control after loading the boot code into memory.
         BootCodeEntryPoint = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$070 / 4: pmBootEntry2 - (reserved)
-        Reserved3 = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
+        // pmBootEntry2 Reserved.
+        BootCodeEntryPoint2 = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$074 / 4: pmBootCksum - boot code checksum
+        // pmBootCksum The boot code checksum. The Start Manager can compare this value
+        // against the calculated checksum after loading the code.
         BootCodeChecksum = BinaryPrimitives.ReadUInt32BigEndian(data[offset..]);
         offset += 4;
 
-        // +$078 /16: pmProcessor - processor type string ("68000", "68020", "68030", "68040")
+        // pmProcessor An optional string that identifies the type of processor that will
+        // execute the boot code. Strings shorter than 16 bytes must be
+        // terminated with the ASCII NUL character. The following processor
+        // types are defined: 68000, 68020, 68030, and 68040. 
         ProcessorType = new String16(data.Slice(offset, String16.Size));
         offset += String16.Size;
 
-        // +$088 /376: (reserved)
+        // pmPad Reserved.
         Debug.Assert(offset == data.Length, "Did not read the expected number of bytes for ApplePartitionMapEntry.");
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ApplePartitionMapEntry"/> struct with the specified values.
     /// </summary>
-    /// <param name="mapEntryCount">The total number of entries in the partition map.</param>
+    /// <param name="mapBlockCount">The total number of entries in the partition map.</param>
     /// <param name="partitionStartBlock">The block number of the first block of the partition.</param>
     /// <param name="partitionBlockCount">The number of blocks in the partition.</param>
     /// <param name="name">The partition name.</param>
@@ -222,7 +270,7 @@ public struct ApplePartitionMapEntry
     /// <param name="bootCodeChecksum">The boot code checksum.</param>
     /// <param name="processorType">The processor type string.</param>
     public ApplePartitionMapEntry(
-        uint mapEntryCount,
+        uint mapBlockCount,
         uint partitionStartBlock,
         uint partitionBlockCount,
         String32 name,
@@ -237,22 +285,22 @@ public struct ApplePartitionMapEntry
         uint bootCodeChecksum = 0,
         String16 processorType = default)
     {
-        Signature = (ushort)BlockSignature;
-        Reserved1 = 0;
-        MapEntryCount = mapEntryCount;
+        Signature = BlockSignature;
+        Padding = 0;
+        MapBlockCount = mapBlockCount;
         PartitionStartBlock = partitionStartBlock;
         PartitionBlockCount = partitionBlockCount;
         Name = name;
         Type = type;
         DataStartBlock = dataStartBlock;
         DataBlockCount = dataBlockCount;
-        StatusFlags = statusFlags;
+        Status = statusFlags;
         BootCodeStartBlock = bootCodeStartBlock;
         BootCodeBlockCount = bootCodeBlockCount;
         BootCodeAddress = bootCodeAddress;
-        Reserved2 = 0;
+        BootCodeAddress2 = 0;
         BootCodeEntryPoint = bootCodeEntryPoint;
-        Reserved3 = 0;
+        BootCodeEntryPoint2 = 0;
         BootCodeChecksum = bootCodeChecksum;
         ProcessorType = processorType;
     }
@@ -275,11 +323,11 @@ public struct ApplePartitionMapEntry
         offset += 2;
 
         // +$002 / 2: pmSigPad
-        BinaryPrimitives.WriteUInt16BigEndian(data[offset..], Reserved1);
+        BinaryPrimitives.WriteUInt16BigEndian(data[offset..], Padding);
         offset += 2;
 
         // +$004 / 4: pmMapBlkCnt
-        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], MapEntryCount);
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], MapBlockCount);
         offset += 4;
 
         // +$008 / 4: pmPyPartStart
@@ -307,7 +355,7 @@ public struct ApplePartitionMapEntry
         offset += 4;
 
         // +$058 / 4: pmPartStatus
-        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], (uint)StatusFlags);
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], (uint)Status);
         offset += 4;
 
         // +$05c / 4: pmLgBootStart
@@ -323,7 +371,7 @@ public struct ApplePartitionMapEntry
         offset += 4;
 
         // +$068 / 4: (reserved)
-        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], Reserved2);
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], BootCodeAddress2);
         offset += 4;
 
         // +$06c / 4: pmBootEntry
@@ -331,7 +379,7 @@ public struct ApplePartitionMapEntry
         offset += 4;
 
         // +$070 / 4: (reserved)
-        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], Reserved3);
+        BinaryPrimitives.WriteUInt32BigEndian(data[offset..], BootCodeEntryPoint2);
         offset += 4;
 
         // +$074 / 4: pmBootCksum

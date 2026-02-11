@@ -168,7 +168,7 @@ sealed class DumpCommand : Command<DumpSettings>
                 p.PartitionStartBlock.ToString(),
                 p.PartitionBlockCount.ToString(),
                 sizeStr,
-                p.StatusFlags.ToString()
+                p.Status.ToString()
             );
             partitionIndex++;
         }

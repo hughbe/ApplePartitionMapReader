@@ -64,7 +64,7 @@ public class ApplePartitionMapBenchmarks
             count++;
             partition.Name.TryFormat(nameBuffer, out _);
             partition.Type.TryFormat(typeBuffer, out _);
-            _ = partition.StatusFlags;
+            _ = partition.Status;
         }
         return count;
     }
@@ -81,7 +81,7 @@ public class ApplePartitionMapBenchmarks
             count++;
             _ = partition.Name.ToString();
             _ = partition.Type.ToString();
-            _ = partition.StatusFlags;
+            _ = partition.Status;
         }
         return count;
     }

@@ -9,7 +9,7 @@ ApplePartitionMapReader is a lightweight .NET library for reading and writing Ap
 - Detect Apple Partition Maps in disk images
 - Enumerate all partitions with detailed metadata
 - Access partition properties: name, type, start block, block count, status flags
-- Strongly-typed status flags with `ApplePartitionMapStatusFlags` enum
+- Strongly-typed status flags with `ApplePartitionMapStatus` enum
 - **Zero-allocation reading API** using struct enumerators and span-based operations
 - High-performance parsing using stack-allocated buffers
 - **Writing API** to create new Apple Partition Map disk images with custom partitions
@@ -53,7 +53,7 @@ if (ApplePartitionMap.IsApplePartitionMap(stream, 0))
         Console.WriteLine($"Type: {partition.Type}");
         Console.WriteLine($"Start: {partition.PartitionStartBlock}");
         Console.WriteLine($"Size: {partition.PartitionBlockCount} blocks");
-        Console.WriteLine($"Status: {partition.StatusFlags}");
+        Console.WriteLine($"Status: {partition.Status}");
         Console.WriteLine();
     }
     
@@ -95,11 +95,11 @@ You can also specify custom status flags per partition:
 
 ```csharp
 writer.AddPartition("Boot", "Apple_HFS", bootData,
-    ApplePartitionMapStatusFlags.Valid |
-    ApplePartitionMapStatusFlags.Allocated |
-    ApplePartitionMapStatusFlags.InUse |
-    ApplePartitionMapStatusFlags.Bootable |
-    ApplePartitionMapStatusFlags.Readable);
+    ApplePartitionMapStatus.Valid |
+    ApplePartitionMapStatus.Allocated |
+    ApplePartitionMapStatus.InUse |
+    ApplePartitionMapStatus.Bootable |
+    ApplePartitionMapStatus.Readable);
 ```
 
 ---
@@ -118,7 +118,7 @@ foreach (var partition in map)
 }
 
 // Get count without enumerating
-int count = map.EntryCount;
+int count = map.MapBlockCount;
 ```
 
 ### Zero-Allocation String Formatting
@@ -175,7 +175,7 @@ if (map.TryGetDriverDescriptorMap(out var ddm))
 |--------|-------------|
 | `ApplePartitionMap(Stream, int)` | Constructs a partition map reader from a seekable, readable stream at the specified offset |
 | `static bool IsApplePartitionMap(Stream, int)` | Checks if the stream contains a valid Apple Partition Map at the given offset |
-| `int EntryCount` | Gets the number of partition entries in the map |
+| `int MapBlockCount` | Gets the number of partition entries in the map |
 | `Enumerator GetEnumerator()` | Returns a struct enumerator for zero-allocation `foreach` support |
 | `ApplePartitionMapEntry this[int]` | Gets the partition entry at the specified index |
 | `DriverDescriptorMap? DriverDescriptorMap` | Gets the driver descriptor map, or `null` if the block is blank |
@@ -185,7 +185,7 @@ if (map.TryGetDriverDescriptorMap(out var ddm))
 
 | Member | Description |
 |--------|-------------|
-| `void AddPartition(string, string, byte[], ApplePartitionMapStatusFlags)` | Adds a partition with the given name, type, raw data, and optional status flags |
+| `void AddPartition(string, string, byte[], ApplePartitionMapStatus)` | Adds a partition with the given name, type, raw data, and optional status flags |
 | `void WriteTo(Stream)` | Writes the complete disk image (DDM + partition map + partition data) to a stream |
 
 ### ApplePartitionMapEntry
@@ -195,14 +195,14 @@ Represents a single partition in the map with the following properties:
 | Property | Type | Description |
 |----------|------|-------------|
 | `Signature` | `ushort` | Partition signature (0x504D = 'PM') |
-| `MapEntryCount` | `uint` | Total number of entries in the partition map |
+| `MapMapBlockCount` | `uint` | Total number of entries in the partition map |
 | `Name` | `String32` | Partition name |
 | `Type` | `String32` | Partition type (e.g., `Apple_HFS`, `Apple_Driver`) |
 | `PartitionStartBlock` | `uint` | First block of the partition |
 | `PartitionBlockCount` | `uint` | Number of blocks in the partition |
 | `DataStartBlock` | `uint` | First logical block of data area |
 | `DataBlockCount` | `uint` | Number of blocks in data area |
-| `StatusFlags` | `ApplePartitionMapStatusFlags` | Partition status flags |
+| `Status` | `ApplePartitionMapStatus` | Partition status flags |
 | `BootCodeStartBlock` | `uint` | First logical block of boot code |
 | `BootCodeBlockCount` | `uint` | Size of boot code in bytes |
 | `BootCodeAddress` | `uint` | Boot code load address |
@@ -214,7 +214,7 @@ The entry also supports writing:
 
 | Member | Description |
 |--------|-------------|
-| `ApplePartitionMapEntry(uint, uint, uint, String32, String32, uint, uint, ApplePartitionMapStatusFlags, ...)` | Constructs an entry with the specified field values for writing |
+| `ApplePartitionMapEntry(uint, uint, uint, String32, String32, uint, uint, ApplePartitionMapStatus, ...)` | Constructs an entry with the specified field values for writing |
 | `void WriteTo(Span<byte>)` | Writes the entry to a span in big-endian format |
 
 ### String16 / String32
@@ -232,7 +232,7 @@ Fixed-size string types with zero-allocation APIs:
 | `string ToString()` | Converts to a string (allocates) |
 | `implicit operator string` | Implicit conversion to string (allocates) |
 
-### ApplePartitionMapStatusFlags
+### ApplePartitionMapStatus
 
 Flags enum representing partition status:
 
@@ -274,7 +274,7 @@ The Apple Partition Map (APM) is the partitioning scheme used on classic Macinto
 - Block size is 512 bytes. The Driver Descriptor Map (if present) occupies block 0.
 - The partition map entries begin at block 1. Each partition map entry is stored in a 512-byte block, with the entry structure occupying the first 136 bytes of the block.
 - Each entry starts with a 2-byte signature `0x504D` (ASCII "PM"). Important fields include:
-    - `pmMapBlkCnt` (map entry count)
+    - `pmMapBlkCnt` (map block count)
     - `pmPyPartStart` (partition start block)
     - `pmPartBlkCnt` (partition block count)
     - `pmPartName` (32-byte name)
@@ -284,6 +284,7 @@ The Apple Partition Map (APM) is the partitioning scheme used on classic Macinto
 
 For more detailed documentation see:
 
+- Inside Macintosh: Chapter 3 - SCSI Manager: https://dev.os9.ca/techpubs/mac/pdf/Devices/SCSI_Manager.pdf
 - CiderPress APM notes: https://ciderpress2.com/formatdoc/APM-notes.html
 - libvsapm APM documentation: https://github.com/libyal/libvsapm/blob/main/documentation/Apple%20partition%20map%20(APM)%20format.asciidoc
 

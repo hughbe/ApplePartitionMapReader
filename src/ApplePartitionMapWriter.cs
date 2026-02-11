@@ -73,7 +73,7 @@ public sealed class ApplePartitionMapWriter
         // Block 1: Partition map self-entry.
         block.Clear();
         var mapSelfEntry = new ApplePartitionMapEntry(
-            mapEntryCount: (uint)mapEntryCount,
+            mapBlockCount: (uint)mapEntryCount,
             partitionStartBlock: 1,
             partitionBlockCount: (uint)mapEntryCount,
             name: String32.FromString("Apple"),
@@ -91,7 +91,7 @@ public sealed class ApplePartitionMapWriter
         {
             block.Clear();
             var entry = new ApplePartitionMapEntry(
-                mapEntryCount: (uint)mapEntryCount,
+                mapBlockCount: (uint)mapEntryCount,
                 partitionStartBlock: currentDataBlock,
                 partitionBlockCount: partitionBlockCounts[i],
                 name: String32.FromString(_partitions[i].Name),

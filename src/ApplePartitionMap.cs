@@ -45,7 +45,7 @@ public readonly struct ApplePartitionMap
     /// <summary>
     /// Gets the number of partition map entries.
     /// </summary>
-    public int Count => (int)this[0].MapEntryCount;
+    public int Count => (int)this[0].MapBlockCount;
 
     /// <summary>
     /// Gets an enumerator for the partition map entries.

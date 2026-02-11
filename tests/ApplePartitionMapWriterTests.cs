@@ -32,7 +32,7 @@ public class ApplePartitionMapWriterTests
         // Partition 0: self-referencing partition map entry.
         var entry0 = map[0];
         Assert.Equal(ApplePartitionMapEntry.BlockSignature, entry0.Signature);
-        Assert.Equal(2u, entry0.MapEntryCount);
+        Assert.Equal(2u, entry0.MapBlockCount);
         Assert.Equal("Apple", entry0.Name.ToString());
         Assert.Equal("Apple_partition_map", entry0.Type.ToString());
         Assert.Equal(1u, entry0.PartitionStartBlock);
@@ -41,12 +41,12 @@ public class ApplePartitionMapWriterTests
         // Partition 1: user partition.
         var entry1 = map[1];
         Assert.Equal(ApplePartitionMapEntry.BlockSignature, entry1.Signature);
-        Assert.Equal(2u, entry1.MapEntryCount);
+        Assert.Equal(2u, entry1.MapBlockCount);
         Assert.Equal("TestPart", entry1.Name.ToString());
         Assert.Equal("Apple_HFS", entry1.Type.ToString());
         Assert.Equal(3u, entry1.PartitionStartBlock); // Block 0=DDM, 1-2=map, 3=data start.
         Assert.Equal(2u, entry1.PartitionBlockCount); // 1024 bytes = 2 blocks.
-        Assert.Equal(DefaultFlags, entry1.StatusFlags);
+        Assert.Equal(DefaultFlags, entry1.Status);
 
         // Verify the partition data is readable at the correct offset.
         stream.Seek(entry1.PartitionStartBlock * 512, SeekOrigin.Begin);
@@ -106,7 +106,7 @@ public class ApplePartitionMapWriterTests
         Assert.Equal("Apple_PRODOS", e3.Type.ToString());
         Assert.Equal(10u, e3.PartitionStartBlock);
         Assert.Equal(2u, e3.PartitionBlockCount); // 768 bytes -> 2 blocks (padded).
-        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable, e3.StatusFlags);
+        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable, e3.Status);
 
         // Verify partition data readback.
         stream.Seek(e1.PartitionStartBlock * 512, SeekOrigin.Begin);
@@ -174,7 +174,7 @@ public class ApplePartitionMapWriterTests
         var partMap = map[0];
         Assert.Equal("Apple", partMap.Name.ToString());
         Assert.Equal("Apple_partition_map", partMap.Type.ToString());
-        Assert.Equal(4u, partMap.MapEntryCount);
+        Assert.Equal(4u, partMap.MapBlockCount);
 
         // HFS partition.
         var hfs = map[1];

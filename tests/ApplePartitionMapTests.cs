@@ -64,14 +64,14 @@ public class ApplePartitionMapTests
         var partition = map[0];
 
         Assert.Equal(ApplePartitionMapEntry.BlockSignature, partition.Signature);
-        Assert.Equal(4u, partition.MapEntryCount);
+        Assert.Equal(4u, partition.MapBlockCount);
         Assert.Equal("Apple", partition.Name.ToString());
         Assert.Equal("Apple_partition_map", partition.Type.ToString());
         Assert.Equal(1u, partition.PartitionStartBlock);
         Assert.Equal(63u, partition.PartitionBlockCount);
         Assert.Equal(0u, partition.DataStartBlock);
         Assert.Equal(63u, partition.DataBlockCount);
-        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable, partition.StatusFlags);
+        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable, partition.Status);
     }
 
     [Fact]
@@ -84,14 +84,14 @@ public class ApplePartitionMapTests
         var partition = map[1];
 
         Assert.Equal(ApplePartitionMapEntry.BlockSignature, partition.Signature);
-        Assert.Equal(4u, partition.MapEntryCount);
+        Assert.Equal(4u, partition.MapBlockCount);
         Assert.Equal("Macintosh", partition.Name.ToString());
         Assert.Equal("Apple_Driver", partition.Type.ToString());
         Assert.Equal(64u, partition.PartitionStartBlock);
         Assert.Equal(32u, partition.PartitionBlockCount);
         Assert.Equal(0u, partition.DataStartBlock);
         Assert.Equal(32u, partition.DataBlockCount);
-        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Bootable | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable | ApplePartitionMapStatusFlags.BootCodePositionIndependent, partition.StatusFlags);
+        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Bootable | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable | ApplePartitionMapStatusFlags.BootCodePositionIndependent, partition.Status);
     }
 
     [Fact]
@@ -104,14 +104,14 @@ public class ApplePartitionMapTests
         var partition = map[2];
 
         Assert.Equal(ApplePartitionMapEntry.BlockSignature, partition.Signature);
-        Assert.Equal(4u, partition.MapEntryCount);
+        Assert.Equal(4u, partition.MapBlockCount);
         Assert.Equal("MacOS", partition.Name.ToString());
         Assert.Equal("Apple_HFS", partition.Type.ToString());
         Assert.Equal(96u, partition.PartitionStartBlock);
         Assert.Equal(20000u, partition.PartitionBlockCount);
         Assert.Equal(0u, partition.DataStartBlock);
         Assert.Equal(20000u, partition.DataBlockCount);
-        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable | ApplePartitionMapStatusFlags.OSSpecific1, partition.StatusFlags);
+        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable | ApplePartitionMapStatusFlags.OSSpecific1, partition.Status);
     }
 
     [Fact]
@@ -124,14 +124,14 @@ public class ApplePartitionMapTests
         var partition = map[3];
 
         Assert.Equal(ApplePartitionMapEntry.BlockSignature, partition.Signature);
-        Assert.Equal(4u, partition.MapEntryCount);
+        Assert.Equal(4u, partition.MapBlockCount);
         Assert.Equal("Extra", partition.Name.ToString());
         Assert.Equal("Apple_Free", partition.Type.ToString());
         Assert.Equal(20096u, partition.PartitionStartBlock);
         Assert.Equal(136274u, partition.PartitionBlockCount);
         Assert.Equal(0u, partition.DataStartBlock);
         Assert.Equal(136274u, partition.DataBlockCount);
-        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable, partition.StatusFlags);
+        Assert.Equal(ApplePartitionMapStatusFlags.Valid | ApplePartitionMapStatusFlags.Allocated | ApplePartitionMapStatusFlags.InUse | ApplePartitionMapStatusFlags.Readable | ApplePartitionMapStatusFlags.Writable, partition.Status);
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public class ApplePartitionMapTests
         Assert.Equal(156370u, dd.Value.BlockCount);
         Assert.Equal(1u, dd.Value.DeviceType);
         Assert.Equal(1u, dd.Value.DeviceId);
-        Assert.Equal(0u, dd.Value.DriverData);
+        Assert.Equal(0u, dd.Value.Data);
         Assert.Equal(1u, dd.Value.DriverCount);
 
         // Driver entries
